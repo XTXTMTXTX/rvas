@@ -1,0 +1,15 @@
+How to compile
+--------------
+
+Just compile rvas.c. Here is a command example:
+
+cc rvas.c -o rvas
+
+
+How to run
+----------
+
+The program takes the assembly file as argument and writes to standard
+out. Here is a command example:
+
+rvas mycode.asm > myprogram
