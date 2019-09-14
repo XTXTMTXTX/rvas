@@ -1,3 +1,8 @@
+This is a RISC-V assembler.  It can only compile to raw format which
+means the output is just the instructions you write in the assembly
+file, no ELF headers or anything like that.
+
+
 How to compile
 --------------
 
