@@ -100,18 +100,6 @@ is_whitespace(char c)
     return c == ' ' || c == '\t';
 }
 
-enum Reg {
-    REG_ZERO, REG_RA,   REG_SP,   REG_GP,
-    REG_TP,   REG_T0,   REG_T1,   REG_T2,
-    REG_S0,   REG_S1,   REG_A0,   REG_A1,
-    REG_A2,   REG_A3,   REG_A4,   REG_A5,
-    REG_A6,   REG_A7,   REG_S2,   REG_S3,
-    REG_S4,   REG_S5,   REG_S6,   REG_S7,
-    REG_S8,   REG_S9,   REG_S10,  REG_S11,
-    REG_T3,   REG_T4,   REG_T5,   REG_T6,
-};
-typedef enum Reg Reg;
-
 static Str
 read_token(State *st)
 {
@@ -138,6 +126,18 @@ read_token(State *st)
     st->i = i;
     return (Str){st->code.data + token_start, i - token_start};
 }
+
+enum Reg {
+    REG_ZERO, REG_RA,   REG_SP,   REG_GP,
+    REG_TP,   REG_T0,   REG_T1,   REG_T2,
+    REG_S0,   REG_S1,   REG_A0,   REG_A1,
+    REG_A2,   REG_A3,   REG_A4,   REG_A5,
+    REG_A6,   REG_A7,   REG_S2,   REG_S3,
+    REG_S4,   REG_S5,   REG_S6,   REG_S7,
+    REG_S8,   REG_S9,   REG_S10,  REG_S11,
+    REG_T3,   REG_T4,   REG_T5,   REG_T6,
+};
+typedef enum Reg Reg;
 
 static Reg
 read_reg(State *st)
@@ -177,6 +177,111 @@ read_reg(State *st)
     else if (str_eq(s, str("t6")))   { return REG_T6; }
     else {
     }
+}
+
+typedef uint32_t Csr;
+
+static Csr
+read_csr(State *st)
+{
+    Str s = read_token(st);
+    if (str_eq(s, str("ustatus")))             { return 0x000; }
+    else if (str_eq(s, str("uie")))            { return 0x004; }
+    else if (str_eq(s, str("utvec")))          { return 0x005; }
+    else if (str_eq(s, str("uscratch")))       { return 0x040; }
+    else if (str_eq(s, str("uepc")))           { return 0x041; }
+    else if (str_eq(s, str("ucause")))         { return 0x042; }
+    else if (str_eq(s, str("utval")))          { return 0x043; }
+    else if (str_eq(s, str("uip")))            { return 0x044; }
+    else if (str_eq(s, str("fflags")))         { return 0x001; }
+    else if (str_eq(s, str("frm")))            { return 0x002; }
+    else if (str_eq(s, str("fcsr")))           { return 0x003; }
+    else if (str_eq(s, str("cycle")))          { return 0xC00; }
+    else if (str_eq(s, str("time")))           { return 0xC01; }
+    else if (str_eq(s, str("instret")))        { return 0xC02; }
+    else if (str_eq(s, str("hpmcounter3")))    { return 0xC03; }
+    else if (str_eq(s, str("hpmcounter4")))    { return 0xC04; }
+    else if (str_eq(s, str("hpmcounter31")))   { return 0xC1F; }
+    else if (str_eq(s, str("cycleh")))         { return 0xC80; }
+    else if (str_eq(s, str("timeh")))          { return 0xC81; }
+    else if (str_eq(s, str("instreth")))       { return 0xC82; }
+    else if (str_eq(s, str("hpmcounter3h")))   { return 0xC83; }
+    else if (str_eq(s, str("hpmcounter4h")))   { return 0xC84; }
+    else if (str_eq(s, str("hpmcounter31h")))  { return 0xC9F; }
+    else if (str_eq(s, str("sstatus")))        { return 0x100; }
+    else if (str_eq(s, str("sedeleg")))        { return 0x102; }
+    else if (str_eq(s, str("sideleg")))        { return 0x103; }
+    else if (str_eq(s, str("sie")))            { return 0x104; }
+    else if (str_eq(s, str("stvec")))          { return 0x105; }
+    else if (str_eq(s, str("scounteren")))     { return 0x106; }
+    else if (str_eq(s, str("sscratch")))       { return 0x140; }
+    else if (str_eq(s, str("sepc")))           { return 0x141; }
+    else if (str_eq(s, str("scause")))         { return 0x142; }
+    else if (str_eq(s, str("stval")))          { return 0x143; }
+    else if (str_eq(s, str("sip")))            { return 0x144; }
+    else if (str_eq(s, str("satp")))           { return 0x180; }
+    else if (str_eq(s, str("hstatus")))        { return 0x600; }
+    else if (str_eq(s, str("hedeleg")))        { return 0x602; }
+    else if (str_eq(s, str("hideleg")))        { return 0x603; }
+    else if (str_eq(s, str("hcounteren")))     { return 0x606; }
+    else if (str_eq(s, str("hgatp")))          { return 0x680; }
+    else if (str_eq(s, str("htimedelta")))     { return 0x605; }
+    else if (str_eq(s, str("htimedeltah")))    { return 0x615; }
+    else if (str_eq(s, str("vsstatus")))       { return 0x200; }
+    else if (str_eq(s, str("vsie")))           { return 0x204; }
+    else if (str_eq(s, str("vstvec")))         { return 0x205; }
+    else if (str_eq(s, str("vsscratch")))      { return 0x240; }
+    else if (str_eq(s, str("vsepc")))          { return 0x241; }
+    else if (str_eq(s, str("vscause")))        { return 0x242; }
+    else if (str_eq(s, str("vstval")))         { return 0x243; }
+    else if (str_eq(s, str("vsip")))           { return 0x244; }
+    else if (str_eq(s, str("vsatp")))          { return 0x280; }
+    else if (str_eq(s, str("mvendorid")))      { return 0xF11; }
+    else if (str_eq(s, str("marchid")))        { return 0xF12; }
+    else if (str_eq(s, str("mimpid")))         { return 0xF13; }
+    else if (str_eq(s, str("mhartid")))        { return 0xF14; }
+    else if (str_eq(s, str("mstatus")))        { return 0x300; }
+    else if (str_eq(s, str("misa")))           { return 0x301; }
+    else if (str_eq(s, str("medeleg")))        { return 0x302; }
+    else if (str_eq(s, str("mideleg")))        { return 0x303; }
+    else if (str_eq(s, str("mie")))            { return 0x304; }
+    else if (str_eq(s, str("mtvec")))          { return 0x305; }
+    else if (str_eq(s, str("mcounteren")))     { return 0x306; }
+    else if (str_eq(s, str("mstatush")))       { return 0x310; }
+    else if (str_eq(s, str("mscratch")))       { return 0x340; }
+    else if (str_eq(s, str("mepc")))           { return 0x341; }
+    else if (str_eq(s, str("mcause")))         { return 0x342; }
+    else if (str_eq(s, str("mtval")))          { return 0x343; }
+    else if (str_eq(s, str("mip")))            { return 0x344; }
+    else if (str_eq(s, str("pmpcfg0")))        { return 0x3A0; }
+    else if (str_eq(s, str("pmpcfg1")))        { return 0x3A1; }
+    else if (str_eq(s, str("pmpcfg2")))        { return 0x3A2; }
+    else if (str_eq(s, str("pmpcfg3")))        { return 0x3A3; }
+    else if (str_eq(s, str("pmpaddr0")))       { return 0x3B0; }
+    else if (str_eq(s, str("pmpaddr1")))       { return 0x3B1; }
+    else if (str_eq(s, str("pmpaddr15")))      { return 0x3BF; }
+    else if (str_eq(s, str("mcycle")))         { return 0xB00; }
+    else if (str_eq(s, str("minstret")))       { return 0xB02; }
+    else if (str_eq(s, str("mhpmcounter3")))   { return 0xB03; }
+    else if (str_eq(s, str("mhpmcounter4")))   { return 0xB04; }
+    else if (str_eq(s, str("mhpmcounter31")))  { return 0xB1F; }
+    else if (str_eq(s, str("mcycleh")))        { return 0xB80; }
+    else if (str_eq(s, str("minstreth")))      { return 0xB82; }
+    else if (str_eq(s, str("mhpmcounter3h")))  { return 0xB83; }
+    else if (str_eq(s, str("mhpmcounter4h")))  { return 0xB84; }
+    else if (str_eq(s, str("mhpmcounter31h"))) { return 0xB9F; }
+    else if (str_eq(s, str("mcountinhibit")))  { return 0x320; }
+    else if (str_eq(s, str("mhpmevent3")))     { return 0x323; }
+    else if (str_eq(s, str("mhpmevent4")))     { return 0x324; }
+    else if (str_eq(s, str("mhpmevent31")))    { return 0x33F; }
+    else if (str_eq(s, str("tselect")))        { return 0x7A0; }
+    else if (str_eq(s, str("tdata1")))         { return 0x7A1; }
+    else if (str_eq(s, str("tdata2")))         { return 0x7A2; }
+    else if (str_eq(s, str("tdata3")))         { return 0x7A3; }
+    else if (str_eq(s, str("dcsr")))           { return 0x7B0; }
+    else if (str_eq(s, str("dpc")))            { return 0x7B1; }
+    else if (str_eq(s, str("dscratch0")))      { return 0x7B2; }
+    else if (str_eq(s, str("dscratch1")))      { return 0x7B3; }
 }
 
 struct Expr {
@@ -240,6 +345,37 @@ compile_instr_type_i(State *st, uint32_t (fn)(Reg, Reg, int32_t))
     return fn(rd, rs1, imm);
 }
 
+static uint32_t
+compile_instr_type_j(State *st, uint32_t (fn)(Reg, int32_t))
+{
+    Reg rd = read_reg(st);
+    Str comma = read_token(st);
+    int32_t imm = read_expr(st).result;
+    return fn(rd, imm);
+}
+
+static uint32_t
+compile_instr_type_csr(State *st, uint32_t (fn)(Reg, Csr, Reg))
+{
+    Reg rd = read_reg(st);
+    Str comma = read_token(st);
+    Csr csr = read_csr(st);
+    comma = read_token(st);
+    Reg rs1 = read_reg(st);
+    return fn(rd, csr, rs1);
+}
+
+static uint32_t
+compile_instr_type_csri(State *st, uint32_t (fn)(Reg, Csr, int32_t))
+{
+    Reg rd = read_reg(st);
+    Str comma = read_token(st);
+    Csr csr = read_csr(st);
+    comma = read_token(st);
+    int32_t imm = read_expr(st).result;
+    return fn(rd, csr, imm);
+}
+
 static void
 compile_inst(Output *out, State *st, Str first)
 {
@@ -248,6 +384,8 @@ compile_inst(Output *out, State *st, Str first)
         instr = compile_instr_type_r(st, instr_add);
     } else if (str_eq(first, str("addi"))) {
         instr = compile_instr_type_i(st, instr_addi);
+    } else if (str_eq(first, str("jal"))) {
+        instr = compile_instr_type_j(st, instr_jal);
     } else if (str_eq(first, str("auipc"))) {
         Reg rd = read_reg(st);
         Str comma = read_token(st);
@@ -263,6 +401,12 @@ compile_inst(Output *out, State *st, Str first)
         instr = instr_ecall();
     } else if (str_eq(first, str("ebreak"))) {
         instr = instr_ebreak();
+    } else if (str_eq(first, str("wfi"))) {
+        instr = instr_wfi();
+    } else if (str_eq(first, str("csrrs"))) {
+        instr = compile_instr_type_csr(st, instr_csrrs);
+    } else if (str_eq(first, str("csrrsi"))) {
+        instr = compile_instr_type_csri(st, instr_csrrsi);
     } else {
         print_error("Unknown instruction: %.*s\n",
                 (int)first.len, first.data);
