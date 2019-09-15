@@ -346,6 +346,26 @@ compile_instr_type_i(State *st, uint32_t (fn)(Reg, Reg, int32_t))
 }
 
 static uint32_t
+compile_instr_type_u(State *st, uint32_t (fn)(Reg, int32_t))
+{
+    Reg rd = read_reg(st);
+    Str comma = read_token(st);
+    int32_t imm = read_expr(st).result;
+    return fn(rd, imm);
+}
+
+static uint32_t
+compile_instr_type_s(State *st, uint32_t (fn)(Reg, Reg, int32_t))
+{
+    Reg rs1 = read_reg(st);
+    Str comma = read_token(st);
+    Reg rs2 = read_reg(st);
+    comma = read_token(st);
+    int32_t imm = read_expr(st).result;
+    return fn(rs1, rs2, imm);
+}
+
+static uint32_t
 compile_instr_type_j(State *st, uint32_t (fn)(Reg, int32_t))
 {
     Reg rd = read_reg(st);
@@ -387,14 +407,21 @@ compile_inst(Output *out, State *st, Str first)
     } else if (str_eq(first, str("jal"))) {
         instr = compile_instr_type_j(st, instr_jal);
     } else if (str_eq(first, str("auipc"))) {
-        Reg rd = read_reg(st);
-        Str comma = read_token(st);
-        int32_t imm = read_expr(st).result;
-        instr = instr_auipc(rd, imm);
+        instr = compile_instr_type_u(st, instr_auipc);
+    } else if (str_eq(first, str("lui"))) {
+        instr = compile_instr_type_u(st, instr_lui);
     } else if (str_eq(first, str("and"))) {
         instr = compile_instr_type_r(st, instr_and);
     } else if (str_eq(first, str("andi"))) {
         instr = compile_instr_type_i(st, instr_andi);
+    } else if (str_eq(first, str("lb"))) {
+        instr = compile_instr_type_i(st, instr_lb);
+    } else if (str_eq(first, str("lw"))) {
+        instr = compile_instr_type_i(st, instr_lw);
+    } else if (str_eq(first, str("sb"))) {
+        instr = compile_instr_type_s(st, instr_sb);
+    } else if (str_eq(first, str("sw"))) {
+        instr = compile_instr_type_s(st, instr_sw);
     } else if (str_eq(first, str("nop"))) {
         instr = instr_addi(REG_ZERO, REG_ZERO, 0);
     } else if (str_eq(first, str("ecall"))) {
@@ -403,6 +430,10 @@ compile_inst(Output *out, State *st, Str first)
         instr = instr_ebreak();
     } else if (str_eq(first, str("wfi"))) {
         instr = instr_wfi();
+    } else if (str_eq(first, str("csrrc"))) {
+        instr = compile_instr_type_csr(st, instr_csrrc);
+    } else if (str_eq(first, str("csrrci"))) {
+        instr = compile_instr_type_csri(st, instr_csrrci);
     } else if (str_eq(first, str("csrrs"))) {
         instr = compile_instr_type_csr(st, instr_csrrs);
     } else if (str_eq(first, str("csrrsi"))) {
