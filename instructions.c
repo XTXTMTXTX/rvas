@@ -82,13 +82,13 @@ instr_addi(Reg rd, Reg rs1, int32_t imm)
 }
 
 static uint32_t
-instr_addiw(Reg rd, Reg rs1, int32_t imm)
+instr64_addiw(Reg rd, Reg rs1, int32_t imm)
 {
     return instr_type_i(rd, rs1, imm) | 0b0011011;
 }
 
 static uint32_t
-instr_addw(Reg rd, Reg rs1, Reg rs2)
+instr64_addw(Reg rd, Reg rs1, Reg rs2)
 {
     return instr_type_r(rd, rs1, rs2) | 0b0111011;
 }
@@ -319,7 +319,7 @@ instr64_sllw(Reg rd, Reg rs1, Reg rs2)
 }
 
 static uint32_t
-instr64_slt(Reg rd, Reg rs1, Reg rs2)
+instr_slt(Reg rd, Reg rs1, Reg rs2)
 {
     return instr_type_r(rd, rs1, rs2) | 0b010000000110011;
 }
@@ -337,7 +337,7 @@ instr_sltiu(Reg rd, Reg rs1, int32_t imm)
 }
 
 static uint32_t
-instr64_sltu(Reg rd, Reg rs1, Reg rs2)
+instr_sltu(Reg rd, Reg rs1, Reg rs2)
 {
     return instr_type_r(rd, rs1, rs2) | 0b011000000110011;
 }

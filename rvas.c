@@ -396,8 +396,13 @@ compile_instr_type_csri(State *st, uint32_t (fn)(Reg, Csr, int32_t))
     return fn(rd, csr, imm);
 }
 
+enum Target {
+    TARGET_RV32, TARGET_RV64,
+};
+typedef enum Target Target;
+
 static void
-compile_inst(Output *out, State *st, Str first)
+compile_inst(Output *out, State *st, Str first, Target target)
 {
     uint32_t instr = 0;
     if (str_eq(first, str("add"))) {
@@ -406,6 +411,8 @@ compile_inst(Output *out, State *st, Str first)
         instr = compile_instr_type_i(st, instr_addi);
     } else if (str_eq(first, str("jal"))) {
         instr = compile_instr_type_j(st, instr_jal);
+    } else if (str_eq(first, str("sub"))) {
+        instr = compile_instr_type_r(st, instr_sub);
     } else if (str_eq(first, str("auipc"))) {
         instr = compile_instr_type_u(st, instr_auipc);
     } else if (str_eq(first, str("lui"))) {
@@ -414,22 +421,86 @@ compile_inst(Output *out, State *st, Str first)
         instr = compile_instr_type_r(st, instr_and);
     } else if (str_eq(first, str("andi"))) {
         instr = compile_instr_type_i(st, instr_andi);
+    } else if (str_eq(first, str("or"))) {
+        instr = compile_instr_type_r(st, instr_or);
+    } else if (str_eq(first, str("ori"))) {
+        instr = compile_instr_type_i(st, instr_ori);
     } else if (str_eq(first, str("lb"))) {
         instr = compile_instr_type_i(st, instr_lb);
-    } else if (str_eq(first, str("lw"))) {
-        instr = compile_instr_type_i(st, instr_lw);
+    } else if (str_eq(first, str("lbu"))) {
+        instr = compile_instr_type_i(st, instr_lbu);
     } else if (str_eq(first, str("sb"))) {
         instr = compile_instr_type_s(st, instr_sb);
+    } else if (str_eq(first, str("lw"))) {
+        instr = compile_instr_type_i(st, instr_lw);
+    } else if (str_eq(first, str("lwu"))) {
+        instr = compile_instr_type_i(st, instr_lwu);
     } else if (str_eq(first, str("sw"))) {
         instr = compile_instr_type_s(st, instr_sw);
+    } else if (target == TARGET_RV64 && str_eq(first, str("ld"))) {
+        instr = compile_instr_type_i(st, instr_ld);
+    } else if (target == TARGET_RV64 && str_eq(first, str("sd"))) {
+        instr = compile_instr_type_s(st, instr_sd);
+    } else if (str_eq(first, str("lh"))) {
+        instr = compile_instr_type_i(st, instr_lh);
+    } else if (str_eq(first, str("lhu"))) {
+        instr = compile_instr_type_i(st, instr_lhu);
+    } else if (str_eq(first, str("sh"))) {
+        instr = compile_instr_type_s(st, instr_sh);
+    } else if (target == TARGET_RV64 && str_eq(first, str("addw"))) {
+        instr = compile_instr_type_r(st, instr64_addw);
+    } else if (target == TARGET_RV64 && str_eq(first, str("subw"))) {
+        instr = compile_instr_type_r(st, instr64_subw);
+    } else if (target == TARGET_RV64 && str_eq(first, str("addiw"))) {
+        instr = compile_instr_type_i(st, instr64_addiw);
+    } else if (target == TARGET_RV32 && str_eq(first, str("slli"))) {
+        instr = compile_instr_type_i(st, instr32_slli);
+    } else if (target == TARGET_RV64 && str_eq(first, str("slli"))) {
+        instr = compile_instr_type_i(st, instr64_slli);
+    } else if (target == TARGET_RV32 && str_eq(first, str("srli"))) {
+        instr = compile_instr_type_i(st, instr32_srli);
+    } else if (target == TARGET_RV64 && str_eq(first, str("srli"))) {
+        instr = compile_instr_type_i(st, instr64_srli);
+    } else if (str_eq(first, str("sll"))) {
+        instr = compile_instr_type_r(st, instr_sll);
+    } else if (str_eq(first, str("srl"))) {
+        instr = compile_instr_type_r(st, instr_srl);
+    } else if (target == TARGET_RV64 && str_eq(first, str("sllw"))) {
+        instr = compile_instr_type_r(st, instr64_sllw);
+    } else if (target == TARGET_RV64 && str_eq(first, str("slliw"))) {
+        instr = compile_instr_type_i(st, instr64_slliw);
+    } else if (target == TARGET_RV64 && str_eq(first, str("srlw"))) {
+        instr = compile_instr_type_r(st, instr64_srlw);
+    } else if (target == TARGET_RV64 && str_eq(first, str("srliw"))) {
+        instr = compile_instr_type_i(st, instr64_srliw);
+    } else if (str_eq(first, str("xor"))) {
+        instr = compile_instr_type_r(st, instr_xor);
+    } else if (str_eq(first, str("xori"))) {
+        instr = compile_instr_type_i(st, instr_xori);
+    } else if (str_eq(first, str("slt"))) {
+        instr = compile_instr_type_r(st, instr_slt);
+    } else if (str_eq(first, str("sltu"))) {
+        instr = compile_instr_type_r(st, instr_sltu);
+    } else if (str_eq(first, str("slti"))) {
+        instr = compile_instr_type_i(st, instr_slti);
+    } else if (str_eq(first, str("sltiu"))) {
+        instr = compile_instr_type_i(st, instr_sltiu);
+    } else if (target == TARGET_RV32 && str_eq(first, str("srai"))) {
+        instr = compile_instr_type_i(st, instr32_srai);
+    } else if (target == TARGET_RV64 && str_eq(first, str("srai"))) {
+        instr = compile_instr_type_i(st, instr64_srai);
+    } else if (target == TARGET_RV64 && str_eq(first, str("sraiw"))) {
+        instr = compile_instr_type_i(st, instr64_sraiw);
+    } else if (target == TARGET_RV64 && str_eq(first, str("sraw"))) {
+        instr = compile_instr_type_r(st, instr64_sraw);
+    } else if (str_eq(first, str("sra"))) {
+        instr = compile_instr_type_r(st, instr_sra);
     } else if (str_eq(first, str("nop"))) {
         instr = instr_addi(REG_ZERO, REG_ZERO, 0);
     } else if (str_eq(first, str("ecall"))) {
         instr = instr_ecall();
     } else if (str_eq(first, str("ebreak"))) {
         instr = instr_ebreak();
-    } else if (str_eq(first, str("wfi"))) {
-        instr = instr_wfi();
     } else if (str_eq(first, str("csrrc"))) {
         instr = compile_instr_type_csr(st, instr_csrrc);
     } else if (str_eq(first, str("csrrci"))) {
@@ -438,6 +509,12 @@ compile_inst(Output *out, State *st, Str first)
         instr = compile_instr_type_csr(st, instr_csrrs);
     } else if (str_eq(first, str("csrrsi"))) {
         instr = compile_instr_type_csri(st, instr_csrrsi);
+    } else if (str_eq(first, str("csrrw"))) {
+        instr = compile_instr_type_csr(st, instr_csrrw);
+    } else if (str_eq(first, str("csrrwi"))) {
+        instr = compile_instr_type_csri(st, instr_csrrwi);
+    } else if (str_eq(first, str("wfi"))) {
+        instr = instr_wfi();
     } else {
         print_error("Unknown instruction: %.*s\n",
                 (int)first.len, first.data);
@@ -447,7 +524,7 @@ compile_inst(Output *out, State *st, Str first)
 }
 
 static void
-compile(const char *code, size_t code_size)
+compile(const char *code, size_t code_size, Target target)
 {
     Output out;
     State st = {{code, code_size}, 0};
@@ -466,7 +543,7 @@ compile(const char *code, size_t code_size)
         if (str_eq(second, str(":"))) {
             second = read_token(&st_tmp);
         } else {
-            compile_inst(&out, &st, first);
+            compile_inst(&out, &st, first, target);
         }
     }
 }
@@ -474,6 +551,7 @@ compile(const char *code, size_t code_size)
 int
 main(int argc, char **argv)
 {
+    Target target = TARGET_RV64;
     if (argc != 2) {
         fprintf(stderr, "Usage: rvas input-file\n");
         return 1;
@@ -492,5 +570,5 @@ main(int argc, char **argv)
         fprintf(stderr, "Could not read file.\n");
         return 1;
     }
-    compile((char *)data, size);
+    compile((char *)data, size, target);
 }
