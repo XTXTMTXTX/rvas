@@ -411,13 +411,13 @@ instr64_srlw(Reg rd, Reg rs1, Reg rs2)
 static uint32_t
 instr_sub(Reg rd, Reg rs1, Reg rs2)
 {
-    return instr_type_i(rd, rs1, rs2) | 1 << 30 | 0b00000000110011;
+    return instr_type_r(rd, rs1, rs2) | 1 << 30 | 0b00000000110011;
 }
 
 static uint32_t
 instr64_subw(Reg rd, Reg rs1, Reg rs2)
 {
-    return instr_type_i(rd, rs1, rs2) | 1 << 30 | 0b00000000111011;
+    return instr_type_r(rd, rs1, rs2) | 1 << 30 | 0b00000000111011;
 }
 
 static uint32_t
