@@ -176,6 +176,7 @@ read_reg(State *st)
     else if (str_eq(s, str("t5")))   { return REG_T5; }
     else if (str_eq(s, str("t6")))   { return REG_T6; }
     else {
+        print_error("Unknown register: %.*s\n", (int)s.len, s.data);
     }
 }
 
@@ -282,6 +283,9 @@ read_csr(State *st)
     else if (str_eq(s, str("dpc")))            { return 0x7B1; }
     else if (str_eq(s, str("dscratch0")))      { return 0x7B2; }
     else if (str_eq(s, str("dscratch1")))      { return 0x7B3; }
+    else {
+        print_error("Unknown csr: %.*s\n", (int)s.len, s.data);
+    }
 }
 
 struct Expr {
