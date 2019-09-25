@@ -69,7 +69,7 @@ print_error(const char *fmt, ...)
 struct UnknownValue {
     uint32_t *ptr;
     enum InstrType {
-        INSTR_I, INSTR_J,
+        INSTR_I, INSTR_J, INSTR_B,
     } type;
     Str label;
     uint64_t relative_to;
@@ -513,6 +513,24 @@ compile_inst(Output *out, State *st, Str first, Target target)
         instr = compile_instr_type_r(st, instr_or);
     } else if (str_eq(first, str("ori"))) {
         instr = compile_instr_type_i(st, instr_ori, INSTR_I);
+    } else if (str_eq(first, str("beq"))) {
+        instr = compile_instr_type_i(st, instr_beq, INSTR_B);
+        instr.unknown_value.relative_to = st->pc;
+    } else if (str_eq(first, str("bge"))) {
+        instr = compile_instr_type_i(st, instr_bge, INSTR_B);
+        instr.unknown_value.relative_to = st->pc;
+    } else if (str_eq(first, str("bgeu"))) {
+        instr = compile_instr_type_i(st, instr_bgeu, INSTR_B);
+        instr.unknown_value.relative_to = st->pc;
+    } else if (str_eq(first, str("blt"))) {
+        instr = compile_instr_type_i(st, instr_blt, INSTR_B);
+        instr.unknown_value.relative_to = st->pc;
+    } else if (str_eq(first, str("bltu"))) {
+        instr = compile_instr_type_i(st, instr_bltu, INSTR_B);
+        instr.unknown_value.relative_to = st->pc;
+    } else if (str_eq(first, str("bne"))) {
+        instr = compile_instr_type_i(st, instr_bne, INSTR_B);
+        instr.unknown_value.relative_to = st->pc;
     } else if (str_eq(first, str("lb"))) {
         instr = compile_instr_type_i(st, instr_lb, INSTR_I);
     } else if (str_eq(first, str("lbu"))) {
@@ -675,7 +693,8 @@ compile(const char *code, size_t code_size, Target target)
     // Fill in the unknown (but now known) values.
     for (size_t i = 0; i < st.n_unknowns; i++) {
         UnknownValue *ukv = &st.unknowns[i];
-        int32_t diff = get_label(&st, ukv->label)->value - ukv->relative_to;
+        int64_t diff = (int64_t)get_label(&st, ukv->label)->value
+            - ukv->relative_to;
         switch (ukv->type) {
         case INSTR_I:
             *ukv->ptr |= bits(diff, 11, 0) << 20;
@@ -685,6 +704,12 @@ compile(const char *code, size_t code_size, Target target)
                 | bits(diff, 10, 1) << 21
                 | bits(diff, 11, 11) << 20
                 | bits(diff, 19, 12) << 12;
+            break;
+        case INSTR_B:
+            *ukv->ptr |= bits(diff, 12, 12) << 31
+                | bits(diff, 10, 5) << 25
+                | bits(diff, 4, 1) << 8
+                | bits(diff, 11, 11) << 7;
             break;
         }
     }
