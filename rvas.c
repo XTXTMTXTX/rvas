@@ -10,6 +10,8 @@
 
 typedef enum {false, true} bool;
 
+#define ARR_SIZE(a) (sizeof (a) / sizeof *(a))
+
 struct Str {
     const char *data;
     size_t len;
@@ -64,9 +66,34 @@ print_error(const char *fmt, ...)
     va_end(va);
 }
 
+struct UnknownValue {
+    uint32_t *ptr;
+    enum InstrType {
+        INSTR_I, INSTR_J,
+    } type;
+    Str label;
+    uint64_t relative_to;
+};
+typedef struct UnknownValue UnknownValue;
+
+struct LabelValue {
+    Str label;
+    uint64_t value;
+};
+typedef struct LabelValue LabelValue;
+
 struct State {
     Str code;
     size_t i;
+
+    uint64_t pc;
+
+    LabelValue labels[20];
+    size_t n_labels;
+
+#define MAX_UNKNOWNS 20
+    UnknownValue unknowns[20];
+    size_t n_unknowns;
 };
 typedef struct State State;
 
@@ -289,7 +316,11 @@ read_csr(State *st)
 }
 
 struct Expr {
-    int32_t result;
+    bool known;
+    union {
+        int32_t result;  // if known
+        Str label;       // if not known
+    };
 };
 typedef struct Expr Expr;
 
@@ -299,6 +330,10 @@ read_expr(State *st)
     Str t1 = read_token(st);
     if (t1.len) {
         if (is_labelstart(t1.data[0])) {
+            return (Expr) {
+                .known = false,
+                .label = t1,
+            };
         } else {
             Str n = t1;
             int sign = 1;
@@ -308,6 +343,7 @@ read_expr(State *st)
             }
             if (n.len &&  is_digit(n.data[0])) {
                 return (Expr) {
+                    .known = true,
                     .result = str_to_i32(n) * sign,
                 };
             }
@@ -317,17 +353,34 @@ read_expr(State *st)
 
 #include "instructions.c"
 
+#define MAX_OUTPUT_SIZE 1000
 struct Output {
+    uint32_t output_data[MAX_OUTPUT_SIZE];
+    size_t output_len;
 };
 typedef struct Output Output;
 
-static void
+static uint32_t *
 output32(Output *out, uint32_t data)
 {
-    write(1, &data, sizeof data);
+    if (out->output_len >= MAX_OUTPUT_SIZE) {
+        abort();
+    }
+    out->output_data[out->output_len] = data;
+    out->output_len++;
+    return &out->output_data[out->output_len - 1];
 }
 
-static uint32_t
+struct CompiledInstr {
+    uint32_t instr;
+    bool replace_imm;
+
+    // Only used if replace_imm == true.
+    UnknownValue unknown_value;
+};
+typedef struct CompiledInstr CompiledInstr;
+
+static CompiledInstr
 compile_instr_type_r(State *st, uint32_t (fn)(Reg, Reg, Reg))
 {
     Reg rd = read_reg(st);
@@ -335,50 +388,73 @@ compile_instr_type_r(State *st, uint32_t (fn)(Reg, Reg, Reg))
     Reg rs1 = read_reg(st);
     comma = read_token(st);
     Reg rs2 = read_reg(st);
-    return fn(rd, rs1, rs2);
+    return (CompiledInstr) {
+        .instr = fn(rd, rs1, rs2),
+        .replace_imm = false,
+    };
 }
 
-static uint32_t
-compile_instr_type_i(State *st, uint32_t (fn)(Reg, Reg, int32_t))
+static CompiledInstr
+compile_instr_type_i(State *st, uint32_t (fn)(Reg, Reg, int32_t), enum InstrType type)
 {
     Reg rd = read_reg(st);
     Str comma = read_token(st);
     Reg rs1 = read_reg(st);
     comma = read_token(st);
-    int32_t imm = read_expr(st).result;
-    return fn(rd, rs1, imm);
+    Expr e = read_expr(st);
+    return (CompiledInstr) {
+        .instr = fn(rd, rs1, e.known ? e.result : 0),
+        .replace_imm = !e.known,
+        .unknown_value = {
+            .type = type,
+            .label = e.known ? (Str){} : e.label,
+        },
+    };
 }
 
-static uint32_t
+static CompiledInstr
 compile_instr_type_u(State *st, uint32_t (fn)(Reg, int32_t))
 {
     Reg rd = read_reg(st);
     Str comma = read_token(st);
-    int32_t imm = read_expr(st).result;
-    return fn(rd, imm);
+    Expr e = read_expr(st);
+    return (CompiledInstr) {
+        .instr = fn(rd, e.known ? e.result : 0),
+        .replace_imm = !e.known,
+    };
 }
 
-static uint32_t
+static CompiledInstr
 compile_instr_type_s(State *st, uint32_t (fn)(Reg, Reg, int32_t))
 {
     Reg rs1 = read_reg(st);
     Str comma = read_token(st);
     Reg rs2 = read_reg(st);
     comma = read_token(st);
-    int32_t imm = read_expr(st).result;
-    return fn(rs1, rs2, imm);
+    Expr e = read_expr(st);
+    return (CompiledInstr) {
+        .instr = fn(rs1, rs2, e.known ? e.result : 0),
+        .replace_imm = !e.known,
+    };
 }
 
-static uint32_t
-compile_instr_type_j(State *st, uint32_t (fn)(Reg, int32_t))
+static CompiledInstr
+compile_instr_type_j(State *st, uint32_t (fn)(Reg, int32_t), enum InstrType type)
 {
     Reg rd = read_reg(st);
     Str comma = read_token(st);
-    int32_t imm = read_expr(st).result;
-    return fn(rd, imm);
+    Expr e = read_expr(st);
+    return (CompiledInstr) {
+        .instr = fn(rd, e.known ? e.result : 0),
+        .replace_imm = !e.known,
+        .unknown_value = {
+            .type = type,
+            .label = e.known ? (Str){} : e.label,
+        },
+    };
 }
 
-static uint32_t
+static CompiledInstr
 compile_instr_type_csr(State *st, uint32_t (fn)(Reg, Csr, Reg))
 {
     Reg rd = read_reg(st);
@@ -386,18 +462,23 @@ compile_instr_type_csr(State *st, uint32_t (fn)(Reg, Csr, Reg))
     Csr csr = read_csr(st);
     comma = read_token(st);
     Reg rs1 = read_reg(st);
-    return fn(rd, csr, rs1);
+    return (CompiledInstr) {
+        .instr = fn(rd, csr, rs1),
+    };
 }
 
-static uint32_t
+static CompiledInstr
 compile_instr_type_csri(State *st, uint32_t (fn)(Reg, Csr, int32_t))
 {
     Reg rd = read_reg(st);
     Str comma = read_token(st);
     Csr csr = read_csr(st);
     comma = read_token(st);
-    int32_t imm = read_expr(st).result;
-    return fn(rd, csr, imm);
+    Expr e = read_expr(st);
+    return (CompiledInstr) {
+        .instr = fn(rd, csr, e.known ? e.result : 0),
+        .replace_imm = !e.known,
+    };
 }
 
 enum Target {
@@ -408,15 +489,16 @@ typedef enum Target Target;
 static void
 compile_inst(Output *out, State *st, Str first, Target target)
 {
-    uint32_t instr = 0;
+    CompiledInstr instr = {0};
     if (str_eq(first, str("add"))) {
         instr = compile_instr_type_r(st, instr_add);
     } else if (str_eq(first, str("addi"))) {
-        instr = compile_instr_type_i(st, instr_addi);
+        instr = compile_instr_type_i(st, instr_addi, INSTR_I);
     } else if (str_eq(first, str("jal"))) {
-        instr = compile_instr_type_j(st, instr_jal);
+        instr = compile_instr_type_j(st, instr_jal, INSTR_J);
+        instr.unknown_value.relative_to = st->pc;
     } else if (str_eq(first, str("jalr"))) {
-        instr = compile_instr_type_i(st, instr_jalr);
+        instr = compile_instr_type_i(st, instr_jalr, INSTR_I);
     } else if (str_eq(first, str("sub"))) {
         instr = compile_instr_type_r(st, instr_sub);
     } else if (str_eq(first, str("auipc"))) {
@@ -426,31 +508,31 @@ compile_inst(Output *out, State *st, Str first, Target target)
     } else if (str_eq(first, str("and"))) {
         instr = compile_instr_type_r(st, instr_and);
     } else if (str_eq(first, str("andi"))) {
-        instr = compile_instr_type_i(st, instr_andi);
+        instr = compile_instr_type_i(st, instr_andi, INSTR_I);
     } else if (str_eq(first, str("or"))) {
         instr = compile_instr_type_r(st, instr_or);
     } else if (str_eq(first, str("ori"))) {
-        instr = compile_instr_type_i(st, instr_ori);
+        instr = compile_instr_type_i(st, instr_ori, INSTR_I);
     } else if (str_eq(first, str("lb"))) {
-        instr = compile_instr_type_i(st, instr_lb);
+        instr = compile_instr_type_i(st, instr_lb, INSTR_I);
     } else if (str_eq(first, str("lbu"))) {
-        instr = compile_instr_type_i(st, instr_lbu);
+        instr = compile_instr_type_i(st, instr_lbu, INSTR_I);
     } else if (str_eq(first, str("sb"))) {
         instr = compile_instr_type_s(st, instr_sb);
     } else if (str_eq(first, str("lw"))) {
-        instr = compile_instr_type_i(st, instr_lw);
+        instr = compile_instr_type_i(st, instr_lw, INSTR_I);
     } else if (str_eq(first, str("lwu"))) {
-        instr = compile_instr_type_i(st, instr_lwu);
+        instr = compile_instr_type_i(st, instr_lwu, INSTR_I);
     } else if (str_eq(first, str("sw"))) {
         instr = compile_instr_type_s(st, instr_sw);
     } else if (target == TARGET_RV64 && str_eq(first, str("ld"))) {
-        instr = compile_instr_type_i(st, instr_ld);
+        instr = compile_instr_type_i(st, instr_ld, INSTR_I);
     } else if (target == TARGET_RV64 && str_eq(first, str("sd"))) {
         instr = compile_instr_type_s(st, instr_sd);
     } else if (str_eq(first, str("lh"))) {
-        instr = compile_instr_type_i(st, instr_lh);
+        instr = compile_instr_type_i(st, instr_lh, INSTR_I);
     } else if (str_eq(first, str("lhu"))) {
-        instr = compile_instr_type_i(st, instr_lhu);
+        instr = compile_instr_type_i(st, instr_lhu, INSTR_I);
     } else if (str_eq(first, str("sh"))) {
         instr = compile_instr_type_s(st, instr_sh);
     } else if (target == TARGET_RV64 && str_eq(first, str("addw"))) {
@@ -458,15 +540,15 @@ compile_inst(Output *out, State *st, Str first, Target target)
     } else if (target == TARGET_RV64 && str_eq(first, str("subw"))) {
         instr = compile_instr_type_r(st, instr64_subw);
     } else if (target == TARGET_RV64 && str_eq(first, str("addiw"))) {
-        instr = compile_instr_type_i(st, instr64_addiw);
+        instr = compile_instr_type_i(st, instr64_addiw, INSTR_I);
     } else if (target == TARGET_RV32 && str_eq(first, str("slli"))) {
-        instr = compile_instr_type_i(st, instr32_slli);
+        instr = compile_instr_type_i(st, instr32_slli, INSTR_I);
     } else if (target == TARGET_RV64 && str_eq(first, str("slli"))) {
-        instr = compile_instr_type_i(st, instr64_slli);
+        instr = compile_instr_type_i(st, instr64_slli, INSTR_I);
     } else if (target == TARGET_RV32 && str_eq(first, str("srli"))) {
-        instr = compile_instr_type_i(st, instr32_srli);
+        instr = compile_instr_type_i(st, instr32_srli, INSTR_I);
     } else if (target == TARGET_RV64 && str_eq(first, str("srli"))) {
-        instr = compile_instr_type_i(st, instr64_srli);
+        instr = compile_instr_type_i(st, instr64_srli, INSTR_I);
     } else if (str_eq(first, str("sll"))) {
         instr = compile_instr_type_r(st, instr_sll);
     } else if (str_eq(first, str("srl"))) {
@@ -474,39 +556,39 @@ compile_inst(Output *out, State *st, Str first, Target target)
     } else if (target == TARGET_RV64 && str_eq(first, str("sllw"))) {
         instr = compile_instr_type_r(st, instr64_sllw);
     } else if (target == TARGET_RV64 && str_eq(first, str("slliw"))) {
-        instr = compile_instr_type_i(st, instr64_slliw);
+        instr = compile_instr_type_i(st, instr64_slliw, INSTR_I);
     } else if (target == TARGET_RV64 && str_eq(first, str("srlw"))) {
         instr = compile_instr_type_r(st, instr64_srlw);
     } else if (target == TARGET_RV64 && str_eq(first, str("srliw"))) {
-        instr = compile_instr_type_i(st, instr64_srliw);
+        instr = compile_instr_type_i(st, instr64_srliw, INSTR_I);
     } else if (str_eq(first, str("xor"))) {
         instr = compile_instr_type_r(st, instr_xor);
     } else if (str_eq(first, str("xori"))) {
-        instr = compile_instr_type_i(st, instr_xori);
+        instr = compile_instr_type_i(st, instr_xori, INSTR_I);
     } else if (str_eq(first, str("slt"))) {
         instr = compile_instr_type_r(st, instr_slt);
     } else if (str_eq(first, str("sltu"))) {
         instr = compile_instr_type_r(st, instr_sltu);
     } else if (str_eq(first, str("slti"))) {
-        instr = compile_instr_type_i(st, instr_slti);
+        instr = compile_instr_type_i(st, instr_slti, INSTR_I);
     } else if (str_eq(first, str("sltiu"))) {
-        instr = compile_instr_type_i(st, instr_sltiu);
+        instr = compile_instr_type_i(st, instr_sltiu, INSTR_I);
     } else if (target == TARGET_RV32 && str_eq(first, str("srai"))) {
-        instr = compile_instr_type_i(st, instr32_srai);
+        instr = compile_instr_type_i(st, instr32_srai, INSTR_I);
     } else if (target == TARGET_RV64 && str_eq(first, str("srai"))) {
-        instr = compile_instr_type_i(st, instr64_srai);
+        instr = compile_instr_type_i(st, instr64_srai, INSTR_I);
     } else if (target == TARGET_RV64 && str_eq(first, str("sraiw"))) {
-        instr = compile_instr_type_i(st, instr64_sraiw);
+        instr = compile_instr_type_i(st, instr64_sraiw, INSTR_I);
     } else if (target == TARGET_RV64 && str_eq(first, str("sraw"))) {
         instr = compile_instr_type_r(st, instr64_sraw);
     } else if (str_eq(first, str("sra"))) {
         instr = compile_instr_type_r(st, instr_sra);
     } else if (str_eq(first, str("nop"))) {
-        instr = instr_addi(REG_ZERO, REG_ZERO, 0);
+        instr = (CompiledInstr){.instr = instr_addi(REG_ZERO, REG_ZERO, 0)};
     } else if (str_eq(first, str("ecall"))) {
-        instr = instr_ecall();
+        instr = (CompiledInstr){.instr = instr_ecall()};
     } else if (str_eq(first, str("ebreak"))) {
-        instr = instr_ebreak();
+        instr = (CompiledInstr){.instr = instr_ebreak()};
     } else if (str_eq(first, str("csrrc"))) {
         instr = compile_instr_type_csr(st, instr_csrrc);
     } else if (str_eq(first, str("csrrci"))) {
@@ -520,38 +602,94 @@ compile_inst(Output *out, State *st, Str first, Target target)
     } else if (str_eq(first, str("csrrwi"))) {
         instr = compile_instr_type_csri(st, instr_csrrwi);
     } else if (str_eq(first, str("wfi"))) {
-        instr = instr_wfi();
+        instr = (CompiledInstr){.instr = instr_wfi()};
     } else {
         print_error("Unknown instruction: %.*s\n",
                 (int)first.len, first.data);
     }
-    assert(instr != 0);
-    output32(out, instr);
+    assert(instr.instr != 0);
+
+    uint32_t *output_ptr = output32(out, instr.instr);
+
+    if (instr.replace_imm) {
+        if (st->n_unknowns < MAX_UNKNOWNS) {
+            instr.unknown_value.ptr = output_ptr;
+            st->unknowns[st->n_unknowns] = instr.unknown_value;
+            st->n_unknowns++;
+        } else {
+            abort();
+        }
+    }
+}
+
+static LabelValue *
+get_label(const State *st, Str label)
+{
+    for (size_t i = 0; i < st->n_labels; i++) {
+        LabelValue *lab = &st->labels[i];
+        if (str_eq(lab->label, label)) {
+            return lab;
+        }
+    }
+    return NULL;
 }
 
 static void
 compile(const char *code, size_t code_size, Target target)
 {
-    Output out;
-    State st = {{code, code_size}, 0};
+    Output out = {0};
+    State st = {
+        .code = {code, code_size},
+        .i = 0,
+    };
+
     for (;;) {
         Str first = read_token(&st);
         if (first.len == 0) {
             // Nothing more to read.
-            return;
+            break;
         }
         if (first.len && first.data[0] == '\n') {
-            // Skip blank line.
+            // End of line. Read next instruction.
             continue;
         }
         State st_tmp = st;
         Str second = read_token(&st_tmp);
         if (str_eq(second, str(":"))) {
-            second = read_token(&st_tmp);
+            st = st_tmp;
+            if (st.n_labels >= ARR_SIZE(st.labels)) {
+                print_error("Too many labels");
+                break;
+            }
+            st.labels[st.n_labels] = (LabelValue) {
+                .label = first,
+                .value = st.pc,
+            };
+            st.n_labels++;
         } else {
             compile_inst(&out, &st, first, target);
+            st.pc += 4;
         }
     }
+
+    // Fill in the unknown (but now known) values.
+    for (size_t i = 0; i < st.n_unknowns; i++) {
+        UnknownValue *ukv = &st.unknowns[i];
+        int32_t diff = get_label(&st, ukv->label)->value - ukv->relative_to;
+        switch (ukv->type) {
+        case INSTR_I:
+            *ukv->ptr |= bits(diff, 11, 0) << 20;
+            break;
+        case INSTR_J:
+            *ukv->ptr |= bits(diff, 20, 20) << 31
+                | bits(diff, 10, 1) << 21
+                | bits(diff, 11, 11) << 20
+                | bits(diff, 19, 12) << 12;
+            break;
+        }
+    }
+
+    write(1, out.output_data, out.output_len * sizeof *out.output_data);
 }
 
 int
