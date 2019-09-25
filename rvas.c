@@ -415,6 +415,8 @@ compile_inst(Output *out, State *st, Str first, Target target)
         instr = compile_instr_type_i(st, instr_addi);
     } else if (str_eq(first, str("jal"))) {
         instr = compile_instr_type_j(st, instr_jal);
+    } else if (str_eq(first, str("jalr"))) {
+        instr = compile_instr_type_i(st, instr_jalr);
     } else if (str_eq(first, str("sub"))) {
         instr = compile_instr_type_r(st, instr_sub);
     } else if (str_eq(first, str("auipc"))) {
