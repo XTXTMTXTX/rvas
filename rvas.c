@@ -425,15 +425,16 @@ compile_instr_type_u(State *st, uint32_t (fn)(Reg, int32_t))
 }
 
 static CompiledInstr
-compile_instr_type_s(State *st, uint32_t (fn)(Reg, Reg, int32_t))
+compile_instr_rm(State *st, uint32_t (fn)(Reg, Reg, int32_t))
 {
-    Reg rs1 = read_reg(st);
+    Reg r1 = read_reg(st);
     Str comma = read_token(st);
-    Reg rs2 = read_reg(st);
-    comma = read_token(st);
     Expr e = read_expr(st);
+    Str par = read_token(st);
+    Reg r2 = read_reg(st);
+    par = read_token(st);
     return (CompiledInstr) {
-        .instr = fn(rs1, rs2, e.known ? e.result : 0),
+        .instr = fn(r1, r2, e.known ? e.result : 0),
         .replace_imm = !e.known,
     };
 }
@@ -532,27 +533,27 @@ compile_inst(Output *out, State *st, Str first, Target target)
         instr = compile_instr_type_i(st, instr_bne, INSTR_B);
         instr.unknown_value.relative_to = st->pc;
     } else if (str_eq(first, str("lb"))) {
-        instr = compile_instr_type_i(st, instr_lb, INSTR_I);
+        instr = compile_instr_rm(st, instr_lb);
     } else if (str_eq(first, str("lbu"))) {
-        instr = compile_instr_type_i(st, instr_lbu, INSTR_I);
+        instr = compile_instr_rm(st, instr_lbu);
     } else if (str_eq(first, str("sb"))) {
-        instr = compile_instr_type_s(st, instr_sb);
+        instr = compile_instr_rm(st, instr_sb);
     } else if (str_eq(first, str("lw"))) {
-        instr = compile_instr_type_i(st, instr_lw, INSTR_I);
+        instr = compile_instr_rm(st, instr_lw);
     } else if (str_eq(first, str("lwu"))) {
-        instr = compile_instr_type_i(st, instr_lwu, INSTR_I);
+        instr = compile_instr_rm(st, instr_lwu);
     } else if (str_eq(first, str("sw"))) {
-        instr = compile_instr_type_s(st, instr_sw);
+        instr = compile_instr_rm(st, instr_sw);
     } else if (target == TARGET_RV64 && str_eq(first, str("ld"))) {
-        instr = compile_instr_type_i(st, instr_ld, INSTR_I);
+        instr = compile_instr_rm(st, instr_ld);
     } else if (target == TARGET_RV64 && str_eq(first, str("sd"))) {
-        instr = compile_instr_type_s(st, instr_sd);
+        instr = compile_instr_rm(st, instr_sd);
     } else if (str_eq(first, str("lh"))) {
-        instr = compile_instr_type_i(st, instr_lh, INSTR_I);
+        instr = compile_instr_rm(st, instr_lh);
     } else if (str_eq(first, str("lhu"))) {
-        instr = compile_instr_type_i(st, instr_lhu, INSTR_I);
+        instr = compile_instr_rm(st, instr_lhu);
     } else if (str_eq(first, str("sh"))) {
-        instr = compile_instr_type_s(st, instr_sh);
+        instr = compile_instr_rm(st, instr_sh);
     } else if (target == TARGET_RV64 && str_eq(first, str("addw"))) {
         instr = compile_instr_type_r(st, instr64_addw);
     } else if (target == TARGET_RV64 && str_eq(first, str("subw"))) {

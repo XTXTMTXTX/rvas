@@ -268,19 +268,19 @@ instr_ori(Reg rd, Reg rs1, int32_t imm)
 }
 
 static uint32_t
-instr_sb(Reg rs1, Reg rs2, int32_t imm)
+instr_sb(Reg rs2, Reg rs1, int32_t imm)
 {
     return instr_type_s(rs1, rs2, imm) | 0b0100011;
 }
 
 static uint32_t
-instr_sd(Reg rs1, Reg rs2, int32_t imm)
+instr_sd(Reg rs2, Reg rs1, int32_t imm)
 {
     return instr_type_s(rs1, rs2, imm) | 0b011000000100011;
 }
 
 static uint32_t
-instr_sh(Reg rs1, Reg rs2, int32_t imm)
+instr_sh(Reg rs2, Reg rs1, int32_t imm)
 {
     return instr_type_s(rs1, rs2, imm) | 0b001000000100011;
 }
@@ -421,7 +421,7 @@ instr64_subw(Reg rd, Reg rs1, Reg rs2)
 }
 
 static uint32_t
-instr_sw(Reg rs1, Reg rs2, int32_t imm)
+instr_sw(Reg rs2, Reg rs1, int32_t imm)
 {
     return instr_type_s(rs1, rs2, imm) | 0b10000000100011;
 }
