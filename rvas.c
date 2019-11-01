@@ -134,6 +134,11 @@ read_token(State *st)
     while (i < st->code.len && is_whitespace(st->code.data[i])) {
         i++;
     }
+    if(i < st->code.len && st->code.data[i] == ';') {
+        while (i < st->code.len && st->code.data[i] != '\n') {
+            i++;
+        }
+    }
     char first = st->code.data[i];
     size_t token_start = i;
     if (is_labelstart(first)) {
