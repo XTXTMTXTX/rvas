@@ -419,7 +419,7 @@ compile_instr_type_u(State *st, uint32_t (fn)(Reg, int32_t))
     Str comma = read_token(st);
     Expr e = read_expr(st);
     return (CompiledInstr) {
-        .instr = fn(rd, e.known ? e.result : 0),
+        .instr = fn(rd, e.known ? e.result << 12 : 0),
         .replace_imm = !e.known,
     };
 }
