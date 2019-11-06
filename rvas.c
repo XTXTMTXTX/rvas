@@ -386,7 +386,7 @@ struct CompiledInstr {
 typedef struct CompiledInstr CompiledInstr;
 
 static CompiledInstr
-compile_instr_type_r(State *st, uint32_t (fn)(Reg, Reg, Reg))
+compile_instr_rrr(State *st, uint32_t (fn)(Reg, Reg, Reg))
 {
     Reg rd = read_reg(st);
     Str comma = read_token(st);
@@ -400,7 +400,7 @@ compile_instr_type_r(State *st, uint32_t (fn)(Reg, Reg, Reg))
 }
 
 static CompiledInstr
-compile_instr_type_i(State *st, uint32_t (fn)(Reg, Reg, int32_t), enum InstrType type)
+compile_instr_rri(State *st, uint32_t (fn)(Reg, Reg, int32_t), enum InstrType type)
 {
     Reg rd = read_reg(st);
     Str comma = read_token(st);
@@ -418,7 +418,7 @@ compile_instr_type_i(State *st, uint32_t (fn)(Reg, Reg, int32_t), enum InstrType
 }
 
 static CompiledInstr
-compile_instr_type_u(State *st, uint32_t (fn)(Reg, int32_t))
+compile_instr_ru(State *st, uint32_t (fn)(Reg, int32_t))
 {
     Reg rd = read_reg(st);
     Str comma = read_token(st);
@@ -445,7 +445,7 @@ compile_instr_rm(State *st, uint32_t (fn)(Reg, Reg, int32_t))
 }
 
 static CompiledInstr
-compile_instr_type_j(State *st, uint32_t (fn)(Reg, int32_t), enum InstrType type)
+compile_instr_ri(State *st, uint32_t (fn)(Reg, int32_t), enum InstrType type)
 {
     Reg rd = read_reg(st);
     Str comma = read_token(st);
@@ -461,7 +461,7 @@ compile_instr_type_j(State *st, uint32_t (fn)(Reg, int32_t), enum InstrType type
 }
 
 static CompiledInstr
-compile_instr_type_csr(State *st, uint32_t (fn)(Reg, Csr, Reg))
+compile_instr_csr(State *st, uint32_t (fn)(Reg, Csr, Reg))
 {
     Reg rd = read_reg(st);
     Str comma = read_token(st);
@@ -474,7 +474,7 @@ compile_instr_type_csr(State *st, uint32_t (fn)(Reg, Csr, Reg))
 }
 
 static CompiledInstr
-compile_instr_type_csri(State *st, uint32_t (fn)(Reg, Csr, int32_t))
+compile_instr_csri(State *st, uint32_t (fn)(Reg, Csr, int32_t))
 {
     Reg rd = read_reg(st);
     Str comma = read_token(st);
@@ -497,45 +497,45 @@ compile_inst(Output *out, State *st, Str first, Target target)
 {
     CompiledInstr instr = {0};
     if (str_eq(first, str("add"))) {
-        instr = compile_instr_type_r(st, instr_add);
+        instr = compile_instr_rrr(st, instr_add);
     } else if (str_eq(first, str("addi"))) {
-        instr = compile_instr_type_i(st, instr_addi, INSTR_I);
+        instr = compile_instr_rri(st, instr_addi, INSTR_I);
     } else if (str_eq(first, str("jal"))) {
-        instr = compile_instr_type_j(st, instr_jal, INSTR_J);
+        instr = compile_instr_ri(st, instr_jal, INSTR_J);
         instr.unknown_value.relative_to = st->pc;
     } else if (str_eq(first, str("jalr"))) {
-        instr = compile_instr_type_i(st, instr_jalr, INSTR_I);
+        instr = compile_instr_rri(st, instr_jalr, INSTR_I);
     } else if (str_eq(first, str("sub"))) {
-        instr = compile_instr_type_r(st, instr_sub);
+        instr = compile_instr_rrr(st, instr_sub);
     } else if (str_eq(first, str("auipc"))) {
-        instr = compile_instr_type_u(st, instr_auipc);
+        instr = compile_instr_ru(st, instr_auipc);
     } else if (str_eq(first, str("lui"))) {
-        instr = compile_instr_type_u(st, instr_lui);
+        instr = compile_instr_ru(st, instr_lui);
     } else if (str_eq(first, str("and"))) {
-        instr = compile_instr_type_r(st, instr_and);
+        instr = compile_instr_rrr(st, instr_and);
     } else if (str_eq(first, str("andi"))) {
-        instr = compile_instr_type_i(st, instr_andi, INSTR_I);
+        instr = compile_instr_rri(st, instr_andi, INSTR_I);
     } else if (str_eq(first, str("or"))) {
-        instr = compile_instr_type_r(st, instr_or);
+        instr = compile_instr_rrr(st, instr_or);
     } else if (str_eq(first, str("ori"))) {
-        instr = compile_instr_type_i(st, instr_ori, INSTR_I);
+        instr = compile_instr_rri(st, instr_ori, INSTR_I);
     } else if (str_eq(first, str("beq"))) {
-        instr = compile_instr_type_i(st, instr_beq, INSTR_B);
+        instr = compile_instr_rri(st, instr_beq, INSTR_B);
         instr.unknown_value.relative_to = st->pc;
     } else if (str_eq(first, str("bge"))) {
-        instr = compile_instr_type_i(st, instr_bge, INSTR_B);
+        instr = compile_instr_rri(st, instr_bge, INSTR_B);
         instr.unknown_value.relative_to = st->pc;
     } else if (str_eq(first, str("bgeu"))) {
-        instr = compile_instr_type_i(st, instr_bgeu, INSTR_B);
+        instr = compile_instr_rri(st, instr_bgeu, INSTR_B);
         instr.unknown_value.relative_to = st->pc;
     } else if (str_eq(first, str("blt"))) {
-        instr = compile_instr_type_i(st, instr_blt, INSTR_B);
+        instr = compile_instr_rri(st, instr_blt, INSTR_B);
         instr.unknown_value.relative_to = st->pc;
     } else if (str_eq(first, str("bltu"))) {
-        instr = compile_instr_type_i(st, instr_bltu, INSTR_B);
+        instr = compile_instr_rri(st, instr_bltu, INSTR_B);
         instr.unknown_value.relative_to = st->pc;
     } else if (str_eq(first, str("bne"))) {
-        instr = compile_instr_type_i(st, instr_bne, INSTR_B);
+        instr = compile_instr_rri(st, instr_bne, INSTR_B);
         instr.unknown_value.relative_to = st->pc;
     } else if (str_eq(first, str("lb"))) {
         instr = compile_instr_rm(st, instr_lb);
@@ -560,53 +560,53 @@ compile_inst(Output *out, State *st, Str first, Target target)
     } else if (str_eq(first, str("sh"))) {
         instr = compile_instr_rm(st, instr_sh);
     } else if (target == TARGET_RV64 && str_eq(first, str("addw"))) {
-        instr = compile_instr_type_r(st, instr64_addw);
+        instr = compile_instr_rrr(st, instr64_addw);
     } else if (target == TARGET_RV64 && str_eq(first, str("subw"))) {
-        instr = compile_instr_type_r(st, instr64_subw);
+        instr = compile_instr_rrr(st, instr64_subw);
     } else if (target == TARGET_RV64 && str_eq(first, str("addiw"))) {
-        instr = compile_instr_type_i(st, instr64_addiw, INSTR_I);
+        instr = compile_instr_rri(st, instr64_addiw, INSTR_I);
     } else if (target == TARGET_RV32 && str_eq(first, str("slli"))) {
-        instr = compile_instr_type_i(st, instr32_slli, INSTR_I);
+        instr = compile_instr_rri(st, instr32_slli, INSTR_I);
     } else if (target == TARGET_RV64 && str_eq(first, str("slli"))) {
-        instr = compile_instr_type_i(st, instr64_slli, INSTR_I);
+        instr = compile_instr_rri(st, instr64_slli, INSTR_I);
     } else if (target == TARGET_RV32 && str_eq(first, str("srli"))) {
-        instr = compile_instr_type_i(st, instr32_srli, INSTR_I);
+        instr = compile_instr_rri(st, instr32_srli, INSTR_I);
     } else if (target == TARGET_RV64 && str_eq(first, str("srli"))) {
-        instr = compile_instr_type_i(st, instr64_srli, INSTR_I);
+        instr = compile_instr_rri(st, instr64_srli, INSTR_I);
     } else if (str_eq(first, str("sll"))) {
-        instr = compile_instr_type_r(st, instr_sll);
+        instr = compile_instr_rrr(st, instr_sll);
     } else if (str_eq(first, str("srl"))) {
-        instr = compile_instr_type_r(st, instr_srl);
+        instr = compile_instr_rrr(st, instr_srl);
     } else if (target == TARGET_RV64 && str_eq(first, str("sllw"))) {
-        instr = compile_instr_type_r(st, instr64_sllw);
+        instr = compile_instr_rrr(st, instr64_sllw);
     } else if (target == TARGET_RV64 && str_eq(first, str("slliw"))) {
-        instr = compile_instr_type_i(st, instr64_slliw, INSTR_I);
+        instr = compile_instr_rri(st, instr64_slliw, INSTR_I);
     } else if (target == TARGET_RV64 && str_eq(first, str("srlw"))) {
-        instr = compile_instr_type_r(st, instr64_srlw);
+        instr = compile_instr_rrr(st, instr64_srlw);
     } else if (target == TARGET_RV64 && str_eq(first, str("srliw"))) {
-        instr = compile_instr_type_i(st, instr64_srliw, INSTR_I);
+        instr = compile_instr_rri(st, instr64_srliw, INSTR_I);
     } else if (str_eq(first, str("xor"))) {
-        instr = compile_instr_type_r(st, instr_xor);
+        instr = compile_instr_rrr(st, instr_xor);
     } else if (str_eq(first, str("xori"))) {
-        instr = compile_instr_type_i(st, instr_xori, INSTR_I);
+        instr = compile_instr_rri(st, instr_xori, INSTR_I);
     } else if (str_eq(first, str("slt"))) {
-        instr = compile_instr_type_r(st, instr_slt);
+        instr = compile_instr_rrr(st, instr_slt);
     } else if (str_eq(first, str("sltu"))) {
-        instr = compile_instr_type_r(st, instr_sltu);
+        instr = compile_instr_rrr(st, instr_sltu);
     } else if (str_eq(first, str("slti"))) {
-        instr = compile_instr_type_i(st, instr_slti, INSTR_I);
+        instr = compile_instr_rri(st, instr_slti, INSTR_I);
     } else if (str_eq(first, str("sltiu"))) {
-        instr = compile_instr_type_i(st, instr_sltiu, INSTR_I);
+        instr = compile_instr_rri(st, instr_sltiu, INSTR_I);
     } else if (target == TARGET_RV32 && str_eq(first, str("srai"))) {
-        instr = compile_instr_type_i(st, instr32_srai, INSTR_I);
+        instr = compile_instr_rri(st, instr32_srai, INSTR_I);
     } else if (target == TARGET_RV64 && str_eq(first, str("srai"))) {
-        instr = compile_instr_type_i(st, instr64_srai, INSTR_I);
+        instr = compile_instr_rri(st, instr64_srai, INSTR_I);
     } else if (target == TARGET_RV64 && str_eq(first, str("sraiw"))) {
-        instr = compile_instr_type_i(st, instr64_sraiw, INSTR_I);
+        instr = compile_instr_rri(st, instr64_sraiw, INSTR_I);
     } else if (target == TARGET_RV64 && str_eq(first, str("sraw"))) {
-        instr = compile_instr_type_r(st, instr64_sraw);
+        instr = compile_instr_rrr(st, instr64_sraw);
     } else if (str_eq(first, str("sra"))) {
-        instr = compile_instr_type_r(st, instr_sra);
+        instr = compile_instr_rrr(st, instr_sra);
     } else if (str_eq(first, str("nop"))) {
         instr = (CompiledInstr){.instr = instr_addi(REG_ZERO, REG_ZERO, 0)};
     } else if (str_eq(first, str("ecall"))) {
@@ -614,17 +614,17 @@ compile_inst(Output *out, State *st, Str first, Target target)
     } else if (str_eq(first, str("ebreak"))) {
         instr = (CompiledInstr){.instr = instr_ebreak()};
     } else if (str_eq(first, str("csrrc"))) {
-        instr = compile_instr_type_csr(st, instr_csrrc);
+        instr = compile_instr_csr(st, instr_csrrc);
     } else if (str_eq(first, str("csrrci"))) {
-        instr = compile_instr_type_csri(st, instr_csrrci);
+        instr = compile_instr_csri(st, instr_csrrci);
     } else if (str_eq(first, str("csrrs"))) {
-        instr = compile_instr_type_csr(st, instr_csrrs);
+        instr = compile_instr_csr(st, instr_csrrs);
     } else if (str_eq(first, str("csrrsi"))) {
-        instr = compile_instr_type_csri(st, instr_csrrsi);
+        instr = compile_instr_csri(st, instr_csrrsi);
     } else if (str_eq(first, str("csrrw"))) {
-        instr = compile_instr_type_csr(st, instr_csrrw);
+        instr = compile_instr_csr(st, instr_csrrw);
     } else if (str_eq(first, str("csrrwi"))) {
-        instr = compile_instr_type_csri(st, instr_csrrwi);
+        instr = compile_instr_csri(st, instr_csrrwi);
     } else if (str_eq(first, str("wfi"))) {
         instr = (CompiledInstr){.instr = instr_wfi()};
     } else {
