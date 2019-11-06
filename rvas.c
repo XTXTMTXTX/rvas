@@ -504,7 +504,7 @@ compile_inst(Output *out, State *st, Str first, Target target)
         instr = compile_instr_ri(st, instr_jal, INSTR_J);
         instr.unknown_value.relative_to = st->pc;
     } else if (str_eq(first, str("jalr"))) {
-        instr = compile_instr_rri(st, instr_jalr, INSTR_I);
+        instr = compile_instr_rm(st, instr_jalr);
     } else if (str_eq(first, str("sub"))) {
         instr = compile_instr_rrr(st, instr_sub);
     } else if (str_eq(first, str("auipc"))) {
