@@ -91,8 +91,8 @@ struct State {
     LabelValue labels[20];
     size_t n_labels;
 
-#define MAX_UNKNOWNS 20
-    UnknownValue unknowns[20];
+#define MAX_UNKNOWNS 40
+    UnknownValue unknowns[MAX_UNKNOWNS];
     size_t n_unknowns;
 };
 typedef struct State State;
