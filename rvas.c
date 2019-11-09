@@ -82,6 +82,12 @@ struct LabelValue {
 };
 typedef struct LabelValue LabelValue;
 
+struct Const {
+    Str name;
+    int64_t num;
+};
+typedef struct Const Const;
+
 struct State {
     Str code;
     size_t i;
@@ -94,6 +100,10 @@ struct State {
 #define MAX_UNKNOWNS 40
     UnknownValue unknowns[MAX_UNKNOWNS];
     size_t n_unknowns;
+
+#define MAX_CONSTS 40
+    Const consts[MAX_CONSTS];
+    size_t n_consts;
 };
 typedef struct State State;
 
@@ -320,6 +330,18 @@ read_csr(State *st)
     }
 }
 
+static Const *
+get_const(const State *st, Str name)
+{
+    for (size_t i = 0; i < st->n_consts; i++) {
+        Const *c = &st->consts[i];
+        if (str_eq(c->name, name)) {
+            return c;
+        }
+    }
+    return NULL;
+}
+
 struct Expr {
     bool known;
     union {
@@ -333,7 +355,13 @@ static Expr
 read_expr(State *st)
 {
     Str t1 = read_token(st);
-    if (t1.len) {
+    const Const *c = get_const(st, t1);
+    if (c) {
+        return (Expr) {
+            .known = true,
+            .result = c->num,
+        };
+    } else if (t1.len) {
         if (is_labelstart(t1.data[0])) {
             return (Expr) {
                 .known = false,
@@ -690,6 +718,26 @@ compile(const char *code, size_t code_size, Target target)
                 .value = st.pc,
             };
             st.n_labels++;
+        } else if (str_eq(first, str("."))) {
+            st = st_tmp;
+            if (str_eq(second, str("equ"))) {
+                Str name = read_token(&st);
+                Str comma = read_token(&st);
+                Expr e = read_expr(&st);
+                if (st.n_consts < MAX_CONSTS) {
+                    if (!e.known) {
+                        print_error("Constant must not be label");
+                        abort();
+                    }
+                    st.consts[st.n_consts] = (Const) {
+                        .name = name,
+                        .num = e.result,
+                    };
+                    st.n_consts++;
+                } else {
+                    abort();
+                }
+            }
         } else {
             compile_inst(&out, &st, first, target);
             st.pc += 4;
