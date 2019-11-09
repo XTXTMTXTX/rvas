@@ -149,6 +149,7 @@ read_token(State *st)
             i++;
         }
     }
+
     char first = st->code.data[i];
     size_t token_start = i;
     if (is_labelstart(first)) {
@@ -160,6 +161,14 @@ read_token(State *st)
                 && (is_digit(st->code.data[i])
                     || is_letter(st->code.data[i])))
         {
+            i++;
+        }
+    } else if (first == '\'') {
+        i++;
+        while (i < st->code.len && st->code.data[i] != '\'') {
+            i++;
+        }
+        if (i < st->code.len) {
             i++;
         }
     } else if (i < st->code.len) {
@@ -330,6 +339,15 @@ read_csr(State *st)
     }
 }
 
+static uint32_t
+parse_quoted_char(Str token)
+{
+    assert(token.len == 3);
+    assert(token.data[0] == '\'');
+    assert(token.data[2] == '\'');
+    return token.data[1];
+}
+
 static Const *
 get_const(const State *st, Str name)
 {
@@ -360,6 +378,12 @@ read_expr(State *st)
         return (Expr) {
             .known = true,
             .result = c->num,
+        };
+    } else if (t1.len && t1.data[0] == '\'') {
+        uint32_t c = parse_quoted_char(t1);
+        return (Expr) {
+            .known = true,
+            .result = c,
         };
     } else if (t1.len) {
         if (is_labelstart(t1.data[0])) {
