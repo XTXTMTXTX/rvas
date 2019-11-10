@@ -163,6 +163,14 @@ read_token(State *st)
         {
             i++;
         }
+    } else if (first == '"') {
+        i++;
+        while (i < st->code.len && st->code.data[i] != '"') {
+            i++;
+        }
+        if (i < st->code.len) {
+            i++;
+        }
     } else if (first == '\'') {
         i++;
         while (i < st->code.len && st->code.data[i] != '\'') {
@@ -410,22 +418,36 @@ read_expr(State *st)
 
 #include "instructions.c"
 
-#define MAX_OUTPUT_SIZE 1000
+#define MAX_OUTPUT_SIZE 4096
 struct Output {
-    uint32_t output_data[MAX_OUTPUT_SIZE];
+    uint8_t output_data[MAX_OUTPUT_SIZE];
     size_t output_len;
 };
 typedef struct Output Output;
 
-static uint32_t *
-output32(Output *out, uint32_t data)
+static uint8_t *
+output8(Output *out, uint8_t data)
 {
-    if (out->output_len >= MAX_OUTPUT_SIZE) {
+    if (out->output_len + 1 > MAX_OUTPUT_SIZE) {
         abort();
     }
     out->output_data[out->output_len] = data;
-    out->output_len++;
+    out->output_len += 1;
     return &out->output_data[out->output_len - 1];
+}
+
+static uint32_t *
+output32(Output *out, uint32_t data)
+{
+    if (out->output_len + 4 > MAX_OUTPUT_SIZE) {
+        abort();
+    }
+    out->output_data[out->output_len] = data;
+    out->output_data[out->output_len + 1] = data >> 8;
+    out->output_data[out->output_len + 2] = data >> 16;
+    out->output_data[out->output_len + 3] = data >> 24;
+    out->output_len += 4;
+    return (uint32_t*)&out->output_data[out->output_len - 4];
 }
 
 struct CompiledInstr {
@@ -761,6 +783,16 @@ compile(const char *code, size_t code_size, Target target)
                 } else {
                     abort();
                 }
+            } else if (str_eq(second, str("db"))) {
+                Str arg = read_token(&st);
+                if (arg.len >= 2 && arg.data[0] == '"') {
+                    arg.len -= 2;
+                    arg.data += 1;
+                }
+                for (size_t i = 0; i < arg.len; i++) {
+                    output8(&out, arg.data[i]);
+                }
+                st.pc += arg.len;
             }
         } else {
             compile_inst(&out, &st, first, target);
